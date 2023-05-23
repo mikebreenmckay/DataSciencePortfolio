@@ -2,6 +2,7 @@ import tkinter as tk
 from tkcalendar import DateEntry, Calendar
 import sqlite3
 from datetime import date
+from datetime import datetime
 
 # Connect to / create database
 conn = sqlite3.connect('data/todo.db')
@@ -15,6 +16,12 @@ btn_bg = '#28393a'
 btn_bg_clk = '#badee2'
 
 # Main app class
+"""
+ToDo haha.. 
+-Add more menu items.
+-Fix bg color issues
+-Update frames when database is changed
+"""
 class TODOapp(tk.Tk):
 
     def __init__(self, *args, **kwargs):
@@ -53,7 +60,7 @@ class TODOapp(tk.Tk):
 
         newBt = tk.Button(
             button_frame,
-            text="Add/Delete",
+            text="Add ToDo",
             font=('TkMenuFont', 14),
             bg='#28393a',
             fg='white',
@@ -113,6 +120,11 @@ class TODOapp(tk.Tk):
         frame = self.frames[cont]
         frame.tkraise()
 
+# Frame that allows you to view existing todos
+"""
+ToDo:
+-Add scroll bar window
+"""
 class ViewPage(tk.Frame):
 
     def __init__(self, parent, controller):
@@ -135,6 +147,13 @@ class ViewPage(tk.Frame):
             i += 1
         # self.pack(expand=True, fill='both')
 
+# Frame where you can add new todos
+"""
+Todo:
+-Change button to only say Add
+-Possible make notes entry bigger
+-Check to make sure a values is entered in Note and that it does not match existing values
+"""
 class NewPage(tk.Frame):
 
     def __init__(self, parent, controller):
@@ -199,11 +218,191 @@ class NewPage(tk.Frame):
         self.notes_box.delete('0', 'end')
         self.date_picker.set_date(date.today())
 
+# Page where you can delete existing todos and modify their values
+"""
+Todos:
+-Might want to add a simple search to this
+-Add a select all button for the deletion checkboxes  
+"""
 class ModPage(tk.Frame):
 
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         self['bg']=bg_color
+        self.pack_propagate(False)
+
+        self.var = dict()
+        self.build_frame()
+
+        self.curr_record = ""
+
+    def send_to_update(self,record):
+        command = "SELECT * FROM todos WHERE todo=?"
+        update_cursor = conn.execute(command, (record,))
+        old_todo=""
+        old_note=""
+        old_date=date.today()
+        for row in update_cursor:
+            old_todo = row[1]
+            old_date = datetime.strptime(row[0], '%Y-%m-%d').date()
+            old_note = row[2]
+        global curr_record
+        self.curr_record = old_todo
+        self.add_box.delete('0',tk.END)
+        self.add_box.insert(tk.END,old_todo)
+        self.date_picker.set_date(old_date)
+        self.notes_box.delete('1.0',tk.END)
+        self.notes_box.insert(tk.END,old_note)
+
+    def update_db(self):
+        new_todo = self.add_box.get()
+        new_date = self.date_picker.get_date()
+        new_notes = self.notes_box.get("1.0",tk.END)[:-1]
+        if len(self.curr_record) == 0:
+            print("Nothing Selected")
+        else:
+            command="UPDATE todos SET due_date=?, todo=?, notes=? WHERE todo=?"
+            val = (new_date, new_todo, new_notes, self.curr_record)
+            cursor.execute(command, val)
+            conn.commit()
+            self.curr_record = ""
+            for widget in self.winfo_children():
+                widget.destroy()
+            self.build_frame()
+
+    def build_frame(self):
+        view_cursor = conn.execute("SELECT * FROM todos")
+        i = 0
+        for todo in view_cursor:
+            self.var[todo[1]] = tk.IntVar()
+            if i % 2 == 0:
+                alt_bg = '#61acb0'
+            else:
+                alt_bg = '#1d5457'
+            c = tk.Checkbutton(self, bg=alt_bg, variable=self.var[todo[1]], command=lambda key=todo[1]: self.Readstatus(key))
+            todo_date = tk.Label(self, width=10, fg='white', text=todo[0],
+                                 relief='flat', anchor='n', bg=alt_bg)
+            todo_todo = tk.Label(self, width=40, fg='white', text=todo[1],
+                                 relief='flat', anchor='n', bg=alt_bg)
+            edit_btn = tk.Button(
+                self,
+                text="Edit",
+                font=('TkMenuFont', 10),
+                bg='#28393a',
+                fg='white',
+                cursor="hand2",
+                activebackground='#badee2',
+                activeforeground='black',
+                command=lambda key=todo[1]: self.send_to_update(key)
+            )
+            c.grid(row=i, column=0, sticky='w')
+            todo_date.grid(row=i, column=1, sticky='w')
+            todo_todo.grid(row=i, column=2, sticky='w')
+            edit_btn.grid(row=i, column=3, sticky='w')
+            i += 1
+
+        i+=1
+        self.select_all_var = tk.IntVar
+        select_all_cb = tk.Checkbutton(self, bg=bg_color, text="Select All", variable=self.select_all_var,
+                           command=lambda: self.select_all())
+
+        entry_label = tk.Label(
+            self,
+            text="ToDo:",
+            bg=bg_color,
+            fg='white',
+            font=("Impact", 10)
+        )
+        self.add_box = tk.Entry(self, bg='white', justify='left', width=55)
+        date_label = tk.Label(
+            self,
+            text="Edit Date:",
+            bg=bg_color,
+            fg='white',
+            font=("Impact", 10)
+        )
+        self.date_picker = DateEntry(self, selectmode='day')
+        notes_label = tk.Label(
+            self,
+            text="Edit Notes:",
+            bg=bg_color,
+            fg='white',
+            font=("Impact", 10)
+        )
+        self.notes_box = tk.Text(self, bg='white', height=5, width=55)
+        updateBt = tk.Button(
+            self,
+            text="Update",
+            font=('TkMenuFont', 10),
+            bg='#28393a',
+            fg='white',
+            cursor="hand2",
+            activebackground='#badee2',
+            activeforeground='black',
+            command=lambda: self.update_db()
+        )
+        select_all_cb.grid(row=i, column=0)
+        entry_label.grid(row=i+2,column=0,columnspan=1, sticky='e', pady=10)
+        self.add_box.grid(row=i+2,column=1,columnspan=2, sticky='w')
+        date_label.grid(row=i+3,column=0,columnspan=1, sticky='e', pady=10)
+        self.date_picker.grid(row=i+3,column=1,columnspan=1, sticky='w')
+        notes_label.grid(row=i+4,column=0,columnspan=1, sticky='ne', pady=10)
+        self.notes_box.grid(row=i+4,column=1,columnspan=3, sticky='w')
+        updateBt.grid(row=i+5,column=0,columnspan=5, pady=10)
+
+
+        delBt = tk.Button(
+            self,
+            text="Delete ToDos",
+            font=('TkMenuFont', 14),
+            bg='#28393a',
+            fg='white',
+            cursor="hand2",
+            activebackground='#badee2',
+            activeforeground='black',
+            command=lambda: self.delete_from_db()
+        )
+        delBt.grid(row=i+1,column=0,columnspan=4)
+
+
+    # Function to select all check boxes if select all is chosen
+    def select_all(self):
+        if self.select_all_var:
+            for key in self.var.keys():
+                self.var.get(key).set(1)
+    def Readstatus(self, key):
+        var_obj = self.var.get(key)
+        return (var_obj.get())
+
+    def delete_from_db(self):
+        try:
+            view_cursor = conn.execute("SELECT * FROM todos")
+            comm = "DELETE FROM todos WHERE todo=?"
+            for todo in view_cursor:
+                to_delete = todo[1]
+                if self.Readstatus(to_delete) == 1:
+                    cursor.execute(comm, (to_delete,))
+                    conn.commit()
+                    print('Deleted ' + to_delete)
+            for widget in self.winfo_children():
+                widget.destroy()
+            self.build_frame()
+
+
+            pass
+        except sqlite3.Error as error:
+            print('Failed to delete record from sqlite table', error)
+
+
+
+
+
+
+class SearchPage(tk.Frame):
+
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        self['bg'] = bg_color
         self.pack_propagate(False)
         view_cursor = conn.execute("SELECT * FROM todos")
         i = 0
@@ -219,45 +418,6 @@ class ModPage(tk.Frame):
             todo_date.grid(row=i, column=1)
             todo_todo.grid(row=i, column=2)
             i += 1
-
-        delBt = tk.Button(
-            self,
-            text="Delete ToDos",
-            font=('TkMenuFont', 14),
-            bg='#28393a',
-            fg='white',
-            cursor="hand2",
-            activebackground='#badee2',
-            activeforeground='black',
-            command=lambda: self.delete_from_db()
-        )
-        delBt.grid(row=i+1,column=0)
-
-    def Readstatus(self, key):
-        var_obj = self.var.get(key)
-        return (var_obj.get())
-
-    def delete_from_db(self):
-        try:
-            view_cursor = conn.execute("SELECT * FROM todos")
-            comm = "DELETE FROM todos WHERE todo=?"
-            for todo in view_cursor:
-                to_delete = todo[1]
-                print(type(todo[1]))
-                if self.Readstatus(to_delete) == 1:
-                    cursor.execute(comm, (to_delete,))
-                    conn.commit()
-                    print('Deleted ' + to_delete)
-
-            pass
-        except sqlite3.Error as error:
-            print('Failed to delete record from sqlite table', error)
-
-
-class SearchPage(tk.Frame):
-
-    def __init__(self, parent, controller):
-        tk.Frame.__init__(self, parent)
 
 
 
@@ -317,7 +477,12 @@ if __name__ == '__main__':
 
     # initialize app
     root = TODOapp()
-    root.title("ToDo List")
+
+    # def refresh():
+    #     root.after(1000, refresh)
+    # root.title("ToDo List")
+    #
+    # refresh()
 
     # menu
     menu = tk.Menu(root)
