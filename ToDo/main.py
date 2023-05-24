@@ -254,7 +254,20 @@ class ModPage(tk.Frame):
         self.notes_box.delete('1.0',tk.END)
         self.notes_box.insert(tk.END,old_note)
 
-    def update_db(self):
+    def add_entry(self):
+        if len(self.add_box.get()) == 0:
+            print('Nothing to add')
+        else:
+            comm = "INSERT INTO todos VALUES (?,?,?)"
+            values = self.date_picker.get_date(), self.add_box.get(), self.notes_box.get("1.0",tk.END)[:-1]
+            cursor.execute(comm, values)
+            conn.commit()
+            self.curr_record = ""
+            for widget in self.winfo_children():
+                widget.destroy()
+            self.build_frame()
+
+    def update_entry(self):
         new_todo = self.add_box.get()
         new_date = self.date_picker.get_date()
         new_notes = self.notes_box.get("1.0",tk.END)[:-1]
@@ -270,23 +283,39 @@ class ModPage(tk.Frame):
                 widget.destroy()
             self.build_frame()
 
-    def build_frame(self):
-        view_cursor = conn.execute("SELECT * FROM todos")
+    def clear_entry(self):
+        self.add_box.delete('0', tk.END)
+        self.date_picker.set_date(date.today())
+        self.notes_box.delete('1.0', tk.END)
+        self.curr_record = ""
+
+    def build_frame(self, scommand="SELECT * FROM todos", svar=()):
+        self.leftframe = leftframe = tk.Frame(self, bg=bg_color)
+        self.rightframe = rightframe = tk.Frame(self, bg=bg_color)
+        self.leftframe_upper = leftframe_upper = tk.Frame(leftframe, bg=bg_color)
+        self.leftframe_lower = leftframe_lower = tk.Frame(leftframe, bg=bg_color)
+
+        view_cursor = conn.execute(scommand, svar)
         i = 0
+        header_date = tk.Label(rightframe, width=10, fg='white', text='Date', anchor='n', bg=bg_color)
+        header_todo = tk.Label(rightframe, width=40, fg='white', text='ToDo', anchor='n', bg=bg_color)
+        header_date.grid(row=i, column=1, sticky='w')
+        header_todo.grid(row=i, column=2, sticky='w')
+        i += 1
         for todo in view_cursor:
             self.var[todo[1]] = tk.IntVar()
             if i % 2 == 0:
                 alt_bg = '#61acb0'
             else:
                 alt_bg = '#1d5457'
-            c = tk.Checkbutton(self, bg=alt_bg, variable=self.var[todo[1]], command=lambda key=todo[1]: self.Readstatus(key))
-            todo_date = tk.Label(self, width=10, fg='white', text=todo[0],
+            c = tk.Checkbutton(rightframe, bg=alt_bg, variable=self.var[todo[1]], command=lambda key=todo[1]: self.Readstatus(key))
+            todo_date = tk.Label(rightframe, width=10, fg='white', text=todo[0],
                                  relief='flat', anchor='n', bg=alt_bg)
-            todo_todo = tk.Label(self, width=40, fg='white', text=todo[1],
+            todo_todo = tk.Label(rightframe, width=40, fg='white', text=todo[1],
                                  relief='flat', anchor='n', bg=alt_bg)
             edit_btn = tk.Button(
-                self,
-                text="Edit",
+                rightframe,
+                text="View/Edit",
                 font=('TkMenuFont', 10),
                 bg='#28393a',
                 fg='white',
@@ -302,36 +331,47 @@ class ModPage(tk.Frame):
             i += 1
 
         i+=1
-        self.select_all_var = tk.IntVar
-        select_all_cb = tk.Checkbutton(self, bg=bg_color, text="Select All", variable=self.select_all_var,
+        self.select_all_var = tk.IntVar()
+        select_all_cb = tk.Checkbutton(rightframe, bg=bg_color, text="Select All", variable=self.select_all_var,
                            command=lambda: self.select_all())
 
         entry_label = tk.Label(
-            self,
+            leftframe_upper,
             text="ToDo:",
             bg=bg_color,
             fg='white',
             font=("Impact", 10)
         )
-        self.add_box = tk.Entry(self, bg='white', justify='left', width=55)
+        self.add_box = tk.Entry(leftframe_upper, bg='white', justify='left', width=60)
         date_label = tk.Label(
-            self,
+            leftframe_upper,
             text="Edit Date:",
             bg=bg_color,
             fg='white',
             font=("Impact", 10)
         )
-        self.date_picker = DateEntry(self, selectmode='day')
+        self.date_picker = DateEntry(leftframe_upper, selectmode='day')
         notes_label = tk.Label(
-            self,
+            leftframe_upper,
             text="Edit Notes:",
             bg=bg_color,
             fg='white',
             font=("Impact", 10)
         )
-        self.notes_box = tk.Text(self, bg='white', height=5, width=55)
+        self.notes_box = tk.Text(leftframe_upper, bg='white', height=7, width=45)
+        addBt = tk.Button(
+            leftframe_upper,
+            text="Add",
+            font=('TkMenuFont', 10),
+            bg='#28393a',
+            fg='white',
+            cursor="hand2",
+            activebackground='#badee2',
+            activeforeground='black',
+            command=lambda: self.add_entry()
+        )
         updateBt = tk.Button(
-            self,
+            leftframe_upper,
             text="Update",
             font=('TkMenuFont', 10),
             bg='#28393a',
@@ -339,22 +379,86 @@ class ModPage(tk.Frame):
             cursor="hand2",
             activebackground='#badee2',
             activeforeground='black',
-            command=lambda: self.update_db()
+            command=lambda: self.update_entry()
         )
-        select_all_cb.grid(row=i, column=0)
-        entry_label.grid(row=i+2,column=0,columnspan=1, sticky='e', pady=10)
-        self.add_box.grid(row=i+2,column=1,columnspan=2, sticky='w')
-        date_label.grid(row=i+3,column=0,columnspan=1, sticky='e', pady=10)
-        self.date_picker.grid(row=i+3,column=1,columnspan=1, sticky='w')
-        notes_label.grid(row=i+4,column=0,columnspan=1, sticky='ne', pady=10)
-        self.notes_box.grid(row=i+4,column=1,columnspan=3, sticky='w')
-        updateBt.grid(row=i+5,column=0,columnspan=5, pady=10)
+
+        clearBt = tk.Button(
+            leftframe_upper,
+            text="Clear",
+            font=('TkMenuFont', 10),
+            bg='#28393a',
+            fg='white',
+            cursor="hand2",
+            activebackground='#badee2',
+            activeforeground='black',
+            command=lambda: self.clear_entry()
+        )
+        select_all_cb.grid(row=i, column=0, columnspan=2)
+        entry_label.grid(row=0,column=0,columnspan=1, sticky='e', ipady=10)
+        self.add_box.grid(row=0,column=1,columnspan=2, sticky='w')
+        date_label.grid(row=1,column=0,columnspan=1, sticky='e', ipady=10)
+        self.date_picker.grid(row=1,column=1,columnspan=1, sticky='w')
+        notes_label.grid(row=2,column=0,columnspan=1, sticky='ne', ipady=10)
+        self.notes_box.grid(row=2,column=1,columnspan=3, sticky='w')
+        addBt.grid(row=3,column=2, pady=10, sticky='w')
+        updateBt.grid(row=3,column=2, pady=10)
+        clearBt.grid(row=3,column=2,pady=10, sticky='e')
+
+        search_label = tk.Label(
+            leftframe_lower,
+            text="Search:",
+            bg=bg_color,
+            fg='white',
+            font=("Impact", 10)
+        )
+        self.search_box = tk.Entry(leftframe_lower, bg='white', justify='left', width=60)
+        date_search_label = tk.Label(
+            leftframe_lower,
+            text="Between:",
+            bg=bg_color,
+            fg='white',
+            font=("Impact", 10)
+        )
+        self.lower_date_picker = DateEntry(leftframe_lower, selectmode='day')
+        self.higher_date_picker = DateEntry(leftframe_lower, selectmode='day')
+
+        searchBt = tk.Button(
+            leftframe_lower,
+            text="Search",
+            font=('TkMenuFont', 10),
+            bg='#28393a',
+            fg='white',
+            cursor="hand2",
+            activebackground='#badee2',
+            activeforeground='black',
+            command=lambda: self.search()
+        )
+
+        clearBt = tk.Button(
+            leftframe_lower,
+            text="See All",
+            font=('TkMenuFont', 10),
+            bg='#28393a',
+            fg='white',
+            cursor="hand2",
+            activebackground='#badee2',
+            activeforeground='black',
+            command=lambda: self.reload_frame()
+        )
+
+        search_label.grid(row=0,column=0,columnspan=1, sticky='e', ipady=10)
+        self.search_box.grid(row=0,column=1,columnspan=2,sticky='w')
+        date_search_label.grid(row=1,column=0,columnspan=1,sticky='e',ipady=10)
+        self.lower_date_picker.grid(row=1,column=1,columnspan=1,sticky='w')
+        self.higher_date_picker.grid(row=1, column=1, columnspan=1, sticky='e')
+        searchBt.grid(row=2, column=2, pady=10)
+        clearBt.grid(row=2, column=2, pady=10, sticky='e')
 
 
         delBt = tk.Button(
-            self,
+            rightframe,
             text="Delete ToDos",
-            font=('TkMenuFont', 14),
+            font=('TkMenuFont', 10),
             bg='#28393a',
             fg='white',
             cursor="hand2",
@@ -364,15 +468,38 @@ class ModPage(tk.Frame):
         )
         delBt.grid(row=i+1,column=0,columnspan=4)
 
+        leftframe_upper.pack(expand=True, fill='both')
+        leftframe_lower.pack(expand=True, fill='both')
+        leftframe.pack(expand=True, fill='both', side='left')
+        rightframe.pack(expand=True, fill='both', side='left')
+
+
 
     # Function to select all check boxes if select all is chosen
     def select_all(self):
-        if self.select_all_var:
+        if self.select_all_var.get() == 1:
             for key in self.var.keys():
                 self.var.get(key).set(1)
     def Readstatus(self, key):
         var_obj = self.var.get(key)
         return (var_obj.get())
+
+    def reload_frame(self):
+        for widget in self.winfo_children():
+            widget.destroy()
+        self.build_frame()
+
+    def search(self):
+        term = self.search_box.get()
+        term = '%' + term + '%'
+        date_low = self.lower_date_picker.get_date()
+        date_high = self.higher_date_picker.get_date()
+        command = "SELECT * FROM todos WHERE (due_date >= ? AND due_date <= ?) AND (todo LIKE ?)"
+        variables = (date_low, date_high, term)
+        print(variables)
+        for widget in self.winfo_children():
+            widget.destroy()
+        self.build_frame(command, variables)
 
     def delete_from_db(self):
         try:
@@ -384,9 +511,7 @@ class ModPage(tk.Frame):
                     cursor.execute(comm, (to_delete,))
                     conn.commit()
                     print('Deleted ' + to_delete)
-            for widget in self.winfo_children():
-                widget.destroy()
-            self.build_frame()
+            self.reload_frame()
 
 
             pass
