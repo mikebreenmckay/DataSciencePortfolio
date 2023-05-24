@@ -1,8 +1,7 @@
 import tkinter as tk
 from tkcalendar import DateEntry, Calendar
 import sqlite3
-from datetime import date
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 # Connect to / create database
 conn = sqlite3.connect('data/todo.db')
@@ -294,11 +293,25 @@ class ModPage(tk.Frame):
         self.rightframe = rightframe = tk.Frame(self, bg=bg_color)
         self.leftframe_upper = leftframe_upper = tk.Frame(leftframe, bg=bg_color)
         self.leftframe_lower = leftframe_lower = tk.Frame(leftframe, bg=bg_color)
+        self.rightframe_upper = rightframe_upper = tk.Frame(rightframe, bg=bg_color)
+        self.rightframe_lower = rightframe_lower = tk.Frame(rightframe, bg=bg_color)
+        self.canvas = canvas = tk.Canvas(rightframe_upper)
+        canvas.pack(side='left', fill='both', expand=True)
+        rightframe_upper.pack(side='top', fill='both', expand=True)
+        rightframe_lower.pack(side='bottom', fill='y', expand=True)
+
+        scrollbar = tk.Scrollbar(rightframe_upper, orient='vertical', command=canvas.yview)
+        scrollbar.pack(side='right', fill='y')
+
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        inner_frame = tk.Frame(canvas)
+        canvas.create_window((0,0), window=inner_frame, anchor='nw')
 
         view_cursor = conn.execute(scommand, svar)
         i = 0
-        header_date = tk.Label(rightframe, width=10, fg='white', text='Date', anchor='n', bg=bg_color)
-        header_todo = tk.Label(rightframe, width=40, fg='white', text='ToDo', anchor='n', bg=bg_color)
+        header_date = tk.Label(inner_frame, width=10, fg='white', text='Date', anchor='n', bg=bg_color)
+        header_todo = tk.Label(inner_frame, width=40, fg='white', text='ToDo', anchor='n', bg=bg_color)
         header_date.grid(row=i, column=1, sticky='w')
         header_todo.grid(row=i, column=2, sticky='w')
         i += 1
@@ -308,15 +321,15 @@ class ModPage(tk.Frame):
                 alt_bg = '#61acb0'
             else:
                 alt_bg = '#1d5457'
-            c = tk.Checkbutton(rightframe, bg=alt_bg, variable=self.var[todo[1]], command=lambda key=todo[1]: self.Readstatus(key))
-            todo_date = tk.Label(rightframe, width=10, fg='white', text=todo[0],
+            c = tk.Checkbutton(inner_frame, bg=alt_bg, variable=self.var[todo[1]], command=lambda key=todo[1]: self.Readstatus(key))
+            todo_date = tk.Label(inner_frame, width=10, fg='white', text=todo[0],
                                  relief='flat', anchor='n', bg=alt_bg)
-            todo_todo = tk.Label(rightframe, width=40, fg='white', text=todo[1],
+            todo_todo = tk.Label(inner_frame, width=40, fg='white', text=todo[1],
                                  relief='flat', anchor='n', bg=alt_bg)
             edit_btn = tk.Button(
-                rightframe,
+                inner_frame,
                 text="View/Edit",
-                font=('TkMenuFont', 10),
+                font=('TkMenuFont', 8),
                 bg='#28393a',
                 fg='white',
                 cursor="hand2",
@@ -332,7 +345,7 @@ class ModPage(tk.Frame):
 
         i+=1
         self.select_all_var = tk.IntVar()
-        select_all_cb = tk.Checkbutton(rightframe, bg=bg_color, text="Select All", variable=self.select_all_var,
+        select_all_cb = tk.Checkbutton(rightframe_lower, bg=bg_color, text="Select All", variable=self.select_all_var,
                            command=lambda: self.select_all())
 
         entry_label = tk.Label(
@@ -393,7 +406,7 @@ class ModPage(tk.Frame):
             activeforeground='black',
             command=lambda: self.clear_entry()
         )
-        select_all_cb.grid(row=i, column=0, columnspan=2)
+        select_all_cb.pack(anchor='sw')
         entry_label.grid(row=0,column=0,columnspan=1, sticky='e', ipady=10)
         self.add_box.grid(row=0,column=1,columnspan=2, sticky='w')
         date_label.grid(row=1,column=0,columnspan=1, sticky='e', ipady=10)
@@ -403,6 +416,8 @@ class ModPage(tk.Frame):
         addBt.grid(row=3,column=2, pady=10, sticky='w')
         updateBt.grid(row=3,column=2, pady=10)
         clearBt.grid(row=3,column=2,pady=10, sticky='e')
+
+        canvas.configure(scrollregion=canvas.bbox("all"))
 
         search_label = tk.Label(
             leftframe_lower,
@@ -421,6 +436,7 @@ class ModPage(tk.Frame):
         )
         self.lower_date_picker = DateEntry(leftframe_lower, selectmode='day')
         self.higher_date_picker = DateEntry(leftframe_lower, selectmode='day')
+        self.higher_date_picker.set_date(date.today()+timedelta(days=100))
 
         searchBt = tk.Button(
             leftframe_lower,
@@ -456,7 +472,7 @@ class ModPage(tk.Frame):
 
 
         delBt = tk.Button(
-            rightframe,
+            rightframe_lower,
             text="Delete ToDos",
             font=('TkMenuFont', 10),
             bg='#28393a',
@@ -466,11 +482,11 @@ class ModPage(tk.Frame):
             activeforeground='black',
             command=lambda: self.delete_from_db()
         )
-        delBt.grid(row=i+1,column=0,columnspan=4)
+        delBt.pack(anchor="se")
 
         leftframe_upper.pack(expand=True, fill='both')
         leftframe_lower.pack(expand=True, fill='both')
-        leftframe.pack(expand=True, fill='both', side='left')
+        leftframe.pack(expand=False, fill='both', side='left', padx=10)
         rightframe.pack(expand=True, fill='both', side='left')
 
 
