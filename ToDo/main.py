@@ -235,7 +235,7 @@ class ModPage(tk.Frame):
         self.notes_box.delete('1.0', tk.END)
         self.curr_record = ""
 
-    def build_frame(self, scommand="SELECT * FROM todos", svar=()):
+    def build_frame(self, scommand="SELECT * FROM todos ORDER BY due_date ASC", svar=()):
         self.pack_propagate(False)
         self.leftframe = leftframe = tk.Frame(self, bg=bg_color)
         self.rightframe = rightframe = tk.Frame(self, bg=bg_color)
@@ -275,7 +275,7 @@ class ModPage(tk.Frame):
             todo_date = tk.Label(inner_frame, width=10, fg='white', text=todo[0],
                                  relief='flat', anchor='n', bg=alt_bg)
             todo_todo = tk.Label(inner_frame, width=50, fg='white', text=todo[1],
-                                 relief='flat', anchor='n', bg=alt_bg)
+                                 relief='flat', anchor='w', bg=alt_bg)
             edit_btn = tk.Button(
                 inner_frame,
                 text="View/Edit",
@@ -287,10 +287,10 @@ class ModPage(tk.Frame):
                 activeforeground='black',
                 command=lambda key=todo[1]: self.send_to_update(key)
             )
-            c.grid(row=i, column=0, sticky='w')
-            todo_date.grid(row=i, column=1, sticky='w')
-            todo_todo.grid(row=i, column=2, sticky='w')
-            edit_btn.grid(row=i, column=3, sticky='w')
+            c.grid(row=i, column=0, sticky='nsew')
+            todo_date.grid(row=i, column=1, sticky='nsew')
+            todo_todo.grid(row=i, column=2, sticky='nsew')
+            edit_btn.grid(row=i, column=3, sticky='nsew')
             i += 1
 
         i+=1
@@ -358,14 +358,14 @@ class ModPage(tk.Frame):
         )
         select_all_cb.pack(anchor='sw')
         entry_label.grid(row=0,column=0,columnspan=1, sticky='e', ipady=10)
-        self.add_box.grid(row=0,column=1,columnspan=2, sticky='w')
+        self.add_box.grid(row=0,column=1,columnspan=6, sticky='w')
         date_label.grid(row=1,column=0,columnspan=1, sticky='e', ipady=10)
-        self.date_picker.grid(row=1,column=1,columnspan=1, sticky='w')
+        self.date_picker.grid(row=1,column=1,columnspan=2, sticky='w')
         notes_label.grid(row=2,column=0,columnspan=1, sticky='ne', ipady=10)
-        self.notes_box.grid(row=2,column=1,columnspan=3, sticky='w')
-        addBt.grid(row=3,column=2, pady=10, sticky='w')
-        updateBt.grid(row=3,column=2, pady=10)
-        clearBt.grid(row=3,column=2,pady=10, sticky='e')
+        self.notes_box.grid(row=2,column=1,columnspan=6, sticky='w')
+        addBt.grid(row=3,column=1, pady=10, sticky='e')
+        updateBt.grid(row=3,column=2, pady=10, padx=5)
+        clearBt.grid(row=3,column=3,pady=10, sticky='w')
 
         canvas.configure(scrollregion=canvas.bbox("all"))
 
@@ -413,12 +413,12 @@ class ModPage(tk.Frame):
         )
 
         search_label.grid(row=0,column=0,columnspan=1, sticky='e', ipady=10)
-        self.search_box.grid(row=0,column=1,columnspan=2,sticky='w')
+        self.search_box.grid(row=0,column=1,columnspan=6,sticky='w')
         date_search_label.grid(row=1,column=0,columnspan=1,sticky='e',ipady=10)
         self.lower_date_picker.grid(row=1,column=1,columnspan=1,sticky='w')
-        self.higher_date_picker.grid(row=1, column=1, columnspan=1, sticky='e')
-        searchBt.grid(row=2, column=2, pady=10)
-        clearBt.grid(row=2, column=2, pady=10, sticky='e')
+        self.higher_date_picker.grid(row=1, column=2, columnspan=1, sticky='e')
+        searchBt.grid(row=2, column=1, pady=10, padx=5, sticky='e')
+        clearBt.grid(row=2, column=2, pady=10, sticky='w')
 
 
         delBt = tk.Button(
@@ -460,7 +460,7 @@ class ModPage(tk.Frame):
         term = '%' + term + '%'
         date_low = self.lower_date_picker.get_date()
         date_high = self.higher_date_picker.get_date()
-        command = "SELECT * FROM todos WHERE (due_date >= ? AND due_date <= ?) AND (todo LIKE ?)"
+        command = "SELECT * FROM todos WHERE (due_date >= ? AND due_date <= ?) AND (todo LIKE ?) ORDER BY due_date ASC"
         variables = (date_low, date_high, term)
         print(variables)
         for widget in self.winfo_children():
