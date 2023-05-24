@@ -43,77 +43,24 @@ class TODOapp(tk.Tk):
             font=("Impact", 24)
         )
 
-        button_frame = tk.Frame(menuFrame, bg=bg_color)
 
-        viewBt = tk.Button(
-            button_frame,
-            text="ToDos",
-            font=('TkMenuFont', 14),
-            bg='#28393a',
-            fg='white',
-            cursor="hand2",
-            activebackground='#badee2',
-            activeforeground='black',
-            command=lambda: self.show_frame(ViewPage)
-        )
 
-        newBt = tk.Button(
-            button_frame,
-            text="Add ToDo",
-            font=('TkMenuFont', 14),
-            bg='#28393a',
-            fg='white',
-            cursor="hand2",
-            activebackground='#badee2',
-            activeforeground='black',
-            command=lambda: self.show_frame(NewPage)
-        )
-
-        modBt = tk.Button(
-            button_frame,
-            text="Modify",
-            font=('TkMenuFont', 14),
-            bg='#28393a',
-            fg='white',
-            cursor="hand2",
-            activebackground='#badee2',
-            activeforeground='black',
-            command=lambda: self.show_frame(ModPage)
-        )
-
-        searchBt = tk.Button(
-            button_frame,
-            text="Search",
-            font=('TkMenuFont', 14),
-            bg='#28393a',
-            fg='white',
-            cursor="hand2",
-            activebackground='#badee2',
-            activeforeground='black',
-            command=lambda: self.show_frame(SearchPage)
-        )
-        viewBt.pack(side='left', fill='both', expand=True)
-        newBt.pack(side='left', fill='both', expand=True)
-        modBt.pack(side='left', fill='both', expand=True)
-        searchBt.pack(side='left', fill='both', expand=True)
         title_widget.pack(expand=True, fill='x', padx=10)
-        button_frame.pack(expand=True, fill='x', padx=10)
 
-
-        menuFrame.pack()
+        menuFrame.pack(fill='x')
 
         # Build main frame
         mainFrame = tk.Frame(self, bg=bg_color)
 
         self.frames = {}
 
-        for F in (ViewPage, NewPage, ModPage, SearchPage):
+        for F in ([ModPage]):
             currFrame = F(mainFrame, self)
             self.frames[F] = currFrame
-            currFrame.grid(row=0, column=0, sticky='nsew')
+            currFrame.pack(expand=True, fill='both' )
 
-        self.show_frame(ViewPage)
-        mainFrame.pack()
+        #self.show_frame(ModPage)
+        mainFrame.pack(expand=True, fill='both')
 
     def show_frame(self, cont):
         frame = self.frames[cont]
@@ -289,13 +236,14 @@ class ModPage(tk.Frame):
         self.curr_record = ""
 
     def build_frame(self, scommand="SELECT * FROM todos", svar=()):
+        self.pack_propagate(False)
         self.leftframe = leftframe = tk.Frame(self, bg=bg_color)
         self.rightframe = rightframe = tk.Frame(self, bg=bg_color)
         self.leftframe_upper = leftframe_upper = tk.Frame(leftframe, bg=bg_color)
         self.leftframe_lower = leftframe_lower = tk.Frame(leftframe, bg=bg_color)
         self.rightframe_upper = rightframe_upper = tk.Frame(rightframe, bg=bg_color)
         self.rightframe_lower = rightframe_lower = tk.Frame(rightframe, bg=bg_color)
-        self.canvas = canvas = tk.Canvas(rightframe_upper)
+        self.canvas = canvas = tk.Canvas(rightframe_upper, bg=bg_color)
         canvas.pack(side='left', fill='both', expand=True)
         rightframe_upper.pack(side='top', fill='both', expand=True)
         rightframe_lower.pack(side='bottom', fill='y', expand=True)
@@ -305,15 +253,17 @@ class ModPage(tk.Frame):
 
         canvas.configure(yscrollcommand=scrollbar.set)
 
-        inner_frame = tk.Frame(canvas)
+        inner_frame = tk.Frame(canvas, bg=bg_color)
+        inner_frame.pack(expand=True, fill='x')
+        inner_frame.pack_propagate(False)
         canvas.create_window((0,0), window=inner_frame, anchor='nw')
 
         view_cursor = conn.execute(scommand, svar)
         i = 0
         header_date = tk.Label(inner_frame, width=10, fg='white', text='Date', anchor='n', bg=bg_color)
-        header_todo = tk.Label(inner_frame, width=40, fg='white', text='ToDo', anchor='n', bg=bg_color)
-        header_date.grid(row=i, column=1, sticky='w')
-        header_todo.grid(row=i, column=2, sticky='w')
+        header_todo = tk.Label(inner_frame, width=60, fg='white', text='ToDo', anchor='n', bg=bg_color)
+        header_date.grid(row=i, column=1, sticky='ew')
+        header_todo.grid(row=i, column=2, columnspan=2, sticky='ew')
         i += 1
         for todo in view_cursor:
             self.var[todo[1]] = tk.IntVar()
@@ -324,7 +274,7 @@ class ModPage(tk.Frame):
             c = tk.Checkbutton(inner_frame, bg=alt_bg, variable=self.var[todo[1]], command=lambda key=todo[1]: self.Readstatus(key))
             todo_date = tk.Label(inner_frame, width=10, fg='white', text=todo[0],
                                  relief='flat', anchor='n', bg=alt_bg)
-            todo_todo = tk.Label(inner_frame, width=40, fg='white', text=todo[1],
+            todo_todo = tk.Label(inner_frame, width=50, fg='white', text=todo[1],
                                  relief='flat', anchor='n', bg=alt_bg)
             edit_btn = tk.Button(
                 inner_frame,
@@ -358,7 +308,7 @@ class ModPage(tk.Frame):
         self.add_box = tk.Entry(leftframe_upper, bg='white', justify='left', width=60)
         date_label = tk.Label(
             leftframe_upper,
-            text="Edit Date:",
+            text="Date:",
             bg=bg_color,
             fg='white',
             font=("Impact", 10)
@@ -366,7 +316,7 @@ class ModPage(tk.Frame):
         self.date_picker = DateEntry(leftframe_upper, selectmode='day')
         notes_label = tk.Label(
             leftframe_upper,
-            text="Edit Notes:",
+            text="Notes:",
             bg=bg_color,
             fg='white',
             font=("Impact", 10)
@@ -534,106 +484,11 @@ class ModPage(tk.Frame):
         except sqlite3.Error as error:
             print('Failed to delete record from sqlite table', error)
 
-
-
-
-
-
-class SearchPage(tk.Frame):
-
-    def __init__(self, parent, controller):
-        tk.Frame.__init__(self, parent)
-        self['bg'] = bg_color
-        self.pack_propagate(False)
-        view_cursor = conn.execute("SELECT * FROM todos")
-        i = 0
-        self.var = dict()
-        for todo in view_cursor:
-            self.var[todo[1]] = tk.IntVar()
-            c = tk.Checkbutton(self, variable=self.var[todo[1]], command=lambda key=todo[1]: self.Readstatus(key))
-            todo_date = tk.Label(self, width=10, fg='blue', text=todo[0],
-                                 relief='ridge', anchor='n')
-            todo_todo = tk.Label(self, width=40, fg='blue', text=todo[1],
-                                 relief='ridge', anchor='n')
-            c.grid(row=i, column=0)
-            todo_date.grid(row=i, column=1)
-            todo_todo.grid(row=i, column=2)
-            i += 1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# def load_view_frame():
-#     view_frame.tkraise()
-
-
-    #todo_frame.pack(expand=True, fill='both')
-
-# Load the frame that allows you to add new tasks
-# def load_new_frame():
-#     # function that saves the form and clears
-#
-#
-#
-#
-# def load_mod_frame():
-#     clear_widgets()
-# def load_search_frame():
-#     clear_widgets()
-
-
-
-
-
-
-
-
-#### view_frame
-#view_frame = tk.Frame(root, bg=bg_color)
-#view_frame.pack_propagate(False)
-
-
-
-
-#### mod_frame
-# mod_frame = tk.Frame(root, bg=bg_color)
-
-#### search_frame
-# search_frame = tk.Frame(root, bg=bg_color)
-
-
 if __name__ == '__main__':
 
     # initialize app
     root = TODOapp()
-
-    # def refresh():
-    #     root.after(1000, refresh)
-    # root.title("ToDo List")
-    #
-    # refresh()
-
-    # menu
-    menu = tk.Menu(root)
-
-    # sub menu
-    file_menu = tk.Menu(menu)
-    menu.add_cascade(label='File', menu=file_menu)
-
-    root.configure(menu=menu)
+    root.title("ToDo List")
 
     # run app
     root.mainloop()
-
