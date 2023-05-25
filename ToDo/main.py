@@ -1,11 +1,14 @@
+import os
+import sys
 import tkinter as tk
 from tkinter import messagebox
 from tkcalendar import DateEntry
 import sqlite3
 from datetime import date, datetime, timedelta
+app_dir = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
 
 # Connect to / create database
-conn = sqlite3.connect('data/todo.db')
+conn = sqlite3.connect(os.path.join(app_dir, 'todo.db'))
 cursor = conn.cursor()
 command1 = """CREATE TABLE IF NOT EXISTS todos(due_date DATE, todo VARCHAR(100) PRIMARY KEY, notes VARCHAR(100))"""
 cursor.execute(command1)
@@ -75,23 +78,41 @@ class ModPage(tk.Frame):
         self.build_frame()
         self.curr_record = ""
 
-    # Updates record in view/edit frame in database
-    def send_to_update(self, record):
-        command = "SELECT * FROM todos WHERE todo=?"
-        update_cursor = conn.execute(command, (record,))
-        old_todo = ""
-        old_note = ""
-        old_date = date.today()
-        for row in update_cursor:
-            old_todo = row[1]
-            old_date = datetime.strptime(row[0], '%Y-%m-%d').date()
-            old_note = row[2]
-        self.curr_record = old_todo
+    # Clears the values in the view/edit frame
+    def clear_entry(self):
         self.add_box.delete('0', tk.END)
-        self.add_box.insert(tk.END, old_todo)
-        self.date_picker.set_date(old_date)
+        self.date_picker.set_date(date.today())
         self.notes_box.delete('1.0', tk.END)
-        self.notes_box.insert(tk.END, old_note)
+        self.curr_record = ""
+
+    # Function to select all check boxes if select all is chosen
+    def select_all(self):
+        if self.select_all_var.get() == 1:
+            for key in self.var.keys():
+                self.var.get(key).set(1)
+
+    # Function that inputs a key and outputs the status of the dynamically created checkboxes
+    def read_status(self, key):
+        var_obj = self.var.get(key)
+        return var_obj.get()
+
+    # Generic reload function that deletes all dependent widgets and reruns build_frame
+    def reload_frame(self):
+        for widget in self.winfo_children():
+            widget.destroy()
+        self.build_frame()
+
+    # Function to search the database
+    def search(self):
+        term = self.search_box.get()
+        term = '%' + term + '%'
+        date_low = self.lower_date_picker.get_date()
+        date_high = self.higher_date_picker.get_date()
+        command = "SELECT * FROM todos WHERE (due_date >= ? AND due_date <= ?) AND (todo LIKE ?) ORDER BY due_date ASC"
+        variables = (date_low, date_high, term)
+        for widget in self.winfo_children():
+            widget.destroy()
+        self.build_frame(command, variables)
 
     # adds record in view/edit frame to database
     def add_entry(self):
@@ -110,8 +131,26 @@ class ModPage(tk.Frame):
             except sqlite3.Error as error:
                 messagebox.showerror('SQL Error', 'Failed to add record to table ' + str(error))
 
-    # Displays selected record in the view/edit frame
-    def view_entry(self):
+    # Sends record to view/edit frame
+    def send_to_update(self, record):
+        command = "SELECT * FROM todos WHERE todo=?"
+        update_cursor = conn.execute(command, (record,))
+        old_todo = ""
+        old_note = ""
+        old_date = date.today()
+        for row in update_cursor:
+            old_todo = row[1]
+            old_date = datetime.strptime(row[0], '%Y-%m-%d').date()
+            old_note = row[2]
+        self.curr_record = old_todo
+        self.add_box.delete('0', tk.END)
+        self.add_box.insert(tk.END, old_todo)
+        self.date_picker.set_date(old_date)
+        self.notes_box.delete('1.0', tk.END)
+        self.notes_box.insert(tk.END, old_note)
+
+    # Updates selected record in the view/edit frame
+    def update_entry(self):
         new_todo = self.add_box.get()
         new_date = self.date_picker.get_date()
         new_notes = self.notes_box.get("1.0", tk.END)[:-1]
@@ -130,12 +169,20 @@ class ModPage(tk.Frame):
             except sqlite3.Error as error:
                 messagebox.showerror('SQL Error', 'Failed to update record ' + str(error))
 
-    # Clears the values in the view/edit frame
-    def clear_entry(self):
-        self.add_box.delete('0', tk.END)
-        self.date_picker.set_date(date.today())
-        self.notes_box.delete('1.0', tk.END)
-        self.curr_record = ""
+    # Function to delete rows from the database
+    def delete_from_db(self):
+        try:
+            view_cursor = conn.execute("SELECT * FROM todos")
+            comm = "DELETE FROM todos WHERE todo=?"
+            for todo in view_cursor:
+                to_delete = todo[1]
+                if self.read_status(to_delete) == 1:
+                    cursor.execute(comm, (to_delete,))
+                    conn.commit()
+            self.reload_frame()
+            pass
+        except sqlite3.Error as error:
+            messagebox.showerror('SQL Error', 'Failed to delete record from table ' + str(error))
 
     """
     This function builds the entire frame.  This is what allows for a 'refresh'
@@ -261,7 +308,7 @@ class ModPage(tk.Frame):
             cursor="hand2",
             activebackground='#badee2',
             activeforeground='black',
-            command=lambda: self.view_entry()
+            command=lambda: self.update_entry()
         )
 
         clear_button = tk.Button(
@@ -356,46 +403,6 @@ class ModPage(tk.Frame):
         leftFrame_lower.pack(expand=True, fill='both')
         leftFrame.pack(expand=False, fill='both', side='left', padx=10)
         rightFrame.pack(expand=True, fill='both', side='left')
-
-    # Function to select all check boxes if select all is chosen
-    def select_all(self):
-        if self.select_all_var.get() == 1:
-            for key in self.var.keys():
-                self.var.get(key).set(1)
-
-    def read_status(self, key):
-        var_obj = self.var.get(key)
-        return var_obj.get()
-
-    def reload_frame(self):
-        for widget in self.winfo_children():
-            widget.destroy()
-        self.build_frame()
-
-    def search(self):
-        term = self.search_box.get()
-        term = '%' + term + '%'
-        date_low = self.lower_date_picker.get_date()
-        date_high = self.higher_date_picker.get_date()
-        command = "SELECT * FROM todos WHERE (due_date >= ? AND due_date <= ?) AND (todo LIKE ?) ORDER BY due_date ASC"
-        variables = (date_low, date_high, term)
-        for widget in self.winfo_children():
-            widget.destroy()
-        self.build_frame(command, variables)
-
-    def delete_from_db(self):
-        try:
-            view_cursor = conn.execute("SELECT * FROM todos")
-            comm = "DELETE FROM todos WHERE todo=?"
-            for todo in view_cursor:
-                to_delete = todo[1]
-                if self.read_status(to_delete) == 1:
-                    cursor.execute(comm, (to_delete,))
-                    conn.commit()
-            self.reload_frame()
-            pass
-        except sqlite3.Error as error:
-            messagebox.showerror('SQL Error', 'Failed to delete record from table ' + str(error))
 
 
 if __name__ == '__main__':
